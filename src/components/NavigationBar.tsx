@@ -3,11 +3,17 @@
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { useState } from 'react'
 import { AddFoodForm } from '@/components/AddFoodForm'
-import { Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
+import { SetDailyGoalForm } from '@/components/SetDailyGoalForm'
 
-export function NavigationBar() {
+interface NavigationBarProps {
+    onGoalUpdate?: () => void;
+}
+
+export function NavigationBar({ onGoalUpdate }: NavigationBarProps) {
     const { data: session, status } = useSession()
     const [isAddFoodOpen, setIsAddFoodOpen] = useState(false)
+    const [showGoalForm, setShowGoalForm] = useState(false)
 
     return (
         <>
@@ -24,6 +30,13 @@ export function NavigationBar() {
                                 <div className="text-blue-200 text-sm">Loading...</div>
                             ) : session ? (
                                 <>
+                                    <button
+                                        onClick={() => setShowGoalForm(true)}
+                                        className="px-3 py-2 text-blue-100 hover:text-white bg-blue-900/30 hover:bg-blue-800/50 rounded-lg transition-colors flex items-center gap-2"
+                                    >
+                                        <Plus size={20} />
+                                        <span className="hidden md:inline">Set Goal</span>
+                                    </button>
                                     <button
                                         onClick={() => setIsAddFoodOpen(true)}
                                         className="px-3 py-2 text-blue-100 hover:text-white bg-blue-900/30 hover:bg-blue-800/50 rounded-lg transition-colors flex items-center gap-2"
@@ -71,19 +84,30 @@ export function NavigationBar() {
                             <h2 className="text-xl font-semibold text-white">Add New Food</h2>
                             <button
                                 onClick={() => setIsAddFoodOpen(false)}
-                                className="text-blue-200 hover:text-white"
+                                className="p-1 hover:bg-blue-900/50 rounded-lg transition-colors"
                             >
-                                ✕
+                                <X className="w-5 h-5 text-blue-300" />
                             </button>
                         </div>
                         <AddFoodForm
                             onSuccess={() => {
                                 setIsAddFoodOpen(false)
-                                // You might want to refresh your food list here
                             }}
                         />
                     </div>
                 </div>
+            )}
+
+            {/* Daily Goal Form Modal */}
+            {showGoalForm && (
+                <SetDailyGoalForm
+                    onClose={() => setShowGoalForm(false)}
+                    onSuccess={() => {
+                        if (onGoalUpdate) {
+                            onGoalUpdate()
+                        }
+                    }}
+                />
             )}
         </>
     )

@@ -143,7 +143,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                     </div>
                     <p className="text-2xl font-bold text-white mb-1">
                         {dailyStats.remainingCalories.toFixed(1)}
-                        <span className="text-sm font-normal text-blue-300">remaining</span>
+                        <span className="text-sm font-normal text-blue-300">&nbsp;remaining</span>
                     </p>
                     <div className="flex items-center gap-2 text-sm text-blue-300">
                         <div className="flex-1 h-1.5 bg-blue-900/40 rounded-full overflow-hidden">
@@ -160,7 +160,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                     </div>
                     <p className="text-2xl font-bold text-white mb-1">
                         {dailyStats.remainingProtein.toFixed(1)}g
-                        <span className="text-sm font-normal text-emerald-300">remaining</span>
+                        <span className="text-sm font-normal text-emerald-300">&nbsp;remaining</span>
                     </p>
                     <div className="flex items-center gap-2 text-sm text-emerald-300">
                         <div className="flex-1 h-1.5 bg-emerald-900/40 rounded-full overflow-hidden">
