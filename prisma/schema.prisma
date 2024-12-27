@@ -1,0 +1,80 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?       @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  foods         Food[]
+  consumptions  Consumption[]
+  dailyGoals    DailyGoal[]
+}
+
+model Food {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String        @db.ObjectId
+  name            String
+  caloriesPerUnit Float
+  proteinPerUnit  Float
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  consumptions    Consumption[]
+  user            User          @relation(fields: [userId], references: [id])
+}
+
+model Consumption {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId   String   @db.ObjectId
+  foodId   String   @db.ObjectId
+  quantity Float
+  date     DateTime @default(now())
+  food     Food     @relation(fields: [foodId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model DailyGoal {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  calorieGoal Float
+  proteinGoal Float
+  date        DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
