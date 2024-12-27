@@ -39,7 +39,7 @@ export function AddFoodForm({ onSuccess }: { onSuccess: () => void }) {
     return (
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div>
-                <label className="block text-sm font-medium text-gray-700">Food Name</label>
+                <label className="block text-sm font-medium text-zinc-300  ">Food Name</label>
                 <input
                     type="text"
                     value={name}
@@ -49,7 +49,7 @@ export function AddFoodForm({ onSuccess }: { onSuccess: () => void }) {
                 />
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700">Calories per Unit (kcal)</label>
+                <label className="block text-sm font-medium text-zinc-300">Calories per Unit (kcal)</label>
                 <input
                     type="number"
                     value={calories}
@@ -59,7 +59,7 @@ export function AddFoodForm({ onSuccess }: { onSuccess: () => void }) {
                 />
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700">Protein per Unit (g)</label>
+                <label className="block text-sm font-medium text-zinc-300">Protein per Unit (g)</label>
                 <input
                     type="number"
                     value={protein}

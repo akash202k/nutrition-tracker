@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from 'react'
 
+interface Props {
+    onConsumptionUpdate?: () => void;
+}
+interface Props {
+    onConsumptionUpdate?: () => void;
+    refreshTrigger?: number;
+}
 interface Food {
     id: string
     name: string
@@ -23,14 +30,14 @@ interface Consumption {
     food: Food
 }
 
-export default function NutritionTracker() {
+const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger }) => {
     const [foods, setFoods] = useState<Food[]>([])
     const [selectedFood, setSelectedFood] = useState('')
     const [quantity, setQuantity] = useState('')
     const [dailyStats, setDailyStats] = useState<DailyStats>({
         totalCalories: 0,
         totalProtein: 0,
-        remainingCalories: 0, // Start at 0 until we load real data
+        remainingCalories: 0,
         remainingProtein: 0,
     })
 
@@ -60,7 +67,6 @@ export default function NutritionTracker() {
                 },
                 { calories: 0, protein: 0 }
             )
-            console.log('Calculated totals:', totals)
 
             // 4. Update stats
             const newStats = {
@@ -69,7 +75,6 @@ export default function NutritionTracker() {
                 remainingCalories: goal.calorieGoal - totals.calories,
                 remainingProtein: goal.proteinGoal - totals.protein,
             }
-            console.log('Setting new stats:', newStats)
             setDailyStats(newStats)
         } catch (error) {
             console.error('Error refreshing daily stats:', error)
@@ -81,7 +86,6 @@ export default function NutritionTracker() {
             const res = await fetch('/api/food')
             if (!res.ok) throw new Error('Failed to fetch foods')
             const data = await res.json()
-            console.log('Fetched foods:', data)
             setFoods(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error('Error fetching foods:', error)
@@ -94,12 +98,9 @@ export default function NutritionTracker() {
         if (!selectedFood || !quantity) return
 
         try {
-            console.log('Recording consumption:', { foodId: selectedFood, quantity })
             const res = await fetch('/api/consumption', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     foodId: selectedFood,
                     quantity: parseFloat(quantity),
@@ -107,12 +108,10 @@ export default function NutritionTracker() {
             })
 
             if (!res.ok) throw new Error('Failed to record consumption')
-            console.log('Consumption recorded successfully')
 
-            // Refresh stats after successful consumption
             await refreshDailyStats()
+            onConsumptionUpdate?.()
 
-            // Reset form
             setSelectedFood('')
             setQuantity('')
         } catch (error) {
@@ -121,15 +120,13 @@ export default function NutritionTracker() {
     }
 
     useEffect(() => {
+        refreshDailyStats()
+    }, [refreshTrigger])
+
+    useEffect(() => {
         const initializeData = async () => {
-            try {
-                console.log('Initializing data...')
-                await fetchFoods()
-                await refreshDailyStats()
-                console.log('Data initialization complete')
-            } catch (error) {
-                console.error('Error initializing data:', error)
-            }
+            await fetchFoods()
+            await refreshDailyStats()
         }
 
         initializeData()
@@ -137,65 +134,88 @@ export default function NutritionTracker() {
 
     return (
         <div className="space-y-6">
-            <form onSubmit={handleConsumption} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Select Food</label>
-                        <select
-                            value={selectedFood}
-                            onChange={(e) => setSelectedFood(e.target.value)}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-                            required
-                        >
-                            <option value="">Select a food</option>
-                            {foods.map((food) => (
-                                <option key={food.id} value={food.id}>
-                                    {food.name} ({food.caloriesPerUnit} cal, {food.proteinPerUnit}g protein)
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                        <input
-                            type="number"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            min="0"
-                            step="0.1"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-                </div>
-                <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                    Add Consumption
-                </button>
-            </form>
-
+            {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-white rounded-lg shadow">
-                    <h3 className="font-medium">Daily Calories</h3>
-                    <p className="text-2xl">
-                        {dailyStats.remainingCalories.toFixed(1)} remaining
+                <div className="bg-blue-950/20 backdrop-blur-md p-4 rounded-2xl border border-blue-900/20">
+                    <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-blue-100">Daily Calories</h3>
+                        <span className="text-xs bg-blue-500/20 text-blue-200 px-2 py-1 rounded-full">Goal</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white mb-1">
+                        {dailyStats.remainingCalories.toFixed(1)}
+                        <span className="text-sm font-normal text-blue-300">remaining</span>
                     </p>
-                    <p className="text-sm text-gray-500">
-                        {dailyStats.totalCalories.toFixed(1)} consumed
-                    </p>
+                    <div className="flex items-center gap-2 text-sm text-blue-300">
+                        <div className="flex-1 h-1.5 bg-blue-900/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500" style={{ width: `${Math.min((dailyStats.totalCalories / (dailyStats.totalCalories + dailyStats.remainingCalories)) * 100, 100)}%` }}></div>
+                        </div>
+                        <span>{dailyStats.totalCalories.toFixed(1)} consumed</span>
+                    </div>
                 </div>
-                <div className="p-4 bg-white rounded-lg shadow">
-                    <h3 className="font-medium">Daily Protein</h3>
-                    <p className="text-2xl">
-                        {dailyStats.remainingProtein.toFixed(1)}g remaining
+
+                <div className="bg-blue-950/20 backdrop-blur-md p-4 rounded-2xl border border-blue-900/20">
+                    <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-blue-100">Daily Protein</h3>
+                        <span className="text-xs bg-emerald-500/20 text-emerald-200 px-2 py-1 rounded-full">Goal</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white mb-1">
+                        {dailyStats.remainingProtein.toFixed(1)}g
+                        <span className="text-sm font-normal text-emerald-300">remaining</span>
                     </p>
-                    <p className="text-sm text-gray-500">
-                        {dailyStats.totalProtein.toFixed(1)}g consumed
-                    </p>
+                    <div className="flex items-center gap-2 text-sm text-emerald-300">
+                        <div className="flex-1 h-1.5 bg-emerald-900/40 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500" style={{ width: `${Math.min((dailyStats.totalProtein / (dailyStats.totalProtein + dailyStats.remainingProtein)) * 100, 100)}%` }}></div>
+                        </div>
+                        <span>{dailyStats.totalProtein.toFixed(1)}g consumed</span>
+                    </div>
                 </div>
+            </div>
+
+            {/* Record Consumption Form */}
+            <div className="bg-blue-950/20 backdrop-blur-md p-6 rounded-2xl border border-blue-900/20">
+                <h2 className="text-xl font-semibold text-blue-100 mb-6">Record Consumption</h2>
+                <form onSubmit={handleConsumption} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-blue-200">Select Food</label>
+                            <select
+                                value={selectedFood}
+                                onChange={(e) => setSelectedFood(e.target.value)}
+                                className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            >
+                                <option value="">Select a food</option>
+                                {foods.map((food) => (
+                                    <option key={food.id} value={food.id} className="bg-blue-900">
+                                        {food.name} ({food.caloriesPerUnit} cal, {food.proteinPerUnit}g protein)
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-blue-200">Quantity</label>
+                            <input
+                                type="number"
+                                value={quantity}
+                                onChange={(e) => setQuantity(e.target.value)}
+                                min="0"
+                                step="0.1"
+                                className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                                placeholder="Enter quantity"
+                            />
+                        </div>
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full md:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-blue-950"
+                    >
+                        Add Consumption
+                    </button>
+                </form>
             </div>
         </div>
     )
 }
+
+export default NutritionTracker
