@@ -23,7 +23,6 @@ export default function RootLayout({
         <AuthProvider>
           {/* Navigation */}
           <NavigationBar />
-          hi
 
           {/* Main content */}
           <main>{children}</main>

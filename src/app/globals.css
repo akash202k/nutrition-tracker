@@ -79,3 +79,32 @@ input:-webkit-autofill:focus {
     background: rgba(30, 64, 175, 0.7);
   }
 }
+
+@layer utilities {
+  .refreshing {
+    transition: transform 0.2s ease;
+  }
+  
+  .refreshing::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 2px;
+    background: rgb(59 130 246 / 0.5);
+    border-radius: 999px;
+  }
+}
+
+/* Enable smooth scrolling on iOS devices */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent elastic scrolling at the top/bottom */
+html,
+body {
+  overscroll-behavior-y: none;
+}
