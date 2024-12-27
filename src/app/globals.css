@@ -14,28 +14,16 @@
   }
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-  height: 100%;
-}
+/* body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+} */
 
 body {
   margin: 0;
   padding: 0;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior-y: none;
-  touch-action: pan-y;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Improved touch and scroll handling */
-* {
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
+  overflow: hidden;
 }
 
 /* Base input styles */
@@ -90,11 +78,6 @@ input:-webkit-autofill:focus {
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: rgba(30, 64, 175, 0.7);
   }
-
-  /* Smooth scroll utility class */
-  .smooth-scroll {
-    scroll-behavior: smooth;
-  }
 }
 
 @layer utilities {
@@ -115,20 +98,13 @@ input:-webkit-autofill:focus {
   }
 }
 
-/* Prevent text selection and focus highlighting */
+/* Enable smooth scrolling on iOS devices */
 * {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  outline: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Allow text selection for inputs and textareas */
-input, 
-textarea {
-  -webkit-user-select: auto;
-  -moz-user-select: auto;
-  -ms-user-select: auto;
-  user-select: auto;
+/* Prevent elastic scrolling at the top/bottom */
+html,
+body {
+  overscroll-behavior-y: none;
 }
