@@ -58,7 +58,7 @@ export function NavigationBar({ onGoalUpdate }: NavigationBarProps) {
                                     </div>
                                     <button
                                         onClick={() => signOut({ callbackUrl: '/' })}
-                                        className="px-4 py-2 text-sm text-blue-100 hover:text-white bg-blue-900/30 hover:bg-blue-800/50 rounded-lg transition-colors"
+                                        className="px-4 py-2 text-sm text-zinc-200 hover:text-white bg-red-600/50 hover:bg-red-800 rounded-lg transition-colors"
                                     >
                                         Sign Out
                                     </button>
