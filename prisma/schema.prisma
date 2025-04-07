@@ -78,3 +78,10 @@ model DailyGoal {
   date        DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
 }
+
+// model EarnedCal {
+//   id            String @id @default(auto()) @map("_id") @db.ObjectId
+//   userId        String @db.ObjectId
+//   calorieEarned Float
+//   activity      String
+// }
