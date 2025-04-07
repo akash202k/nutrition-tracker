@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Search, X } from 'lucide-react'
 
 interface Props {
     onConsumptionUpdate?: () => void;
-}
-interface Props {
-    onConsumptionUpdate?: () => void;
     refreshTrigger?: number;
+    foodRefreshTrigger?: number;
 }
+
 interface Food {
     id: string
     name: string
@@ -30,10 +30,15 @@ interface Consumption {
     food: Food
 }
 
-const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger }) => {
+const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger, foodRefreshTrigger }) => {
     const [foods, setFoods] = useState<Food[]>([])
     const [selectedFood, setSelectedFood] = useState('')
     const [quantity, setQuantity] = useState('')
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showDropdown, setShowDropdown] = useState(false)
+    const [filteredFoods, setFilteredFoods] = useState<Food[]>([])
+    const searchInputRef = useRef<HTMLInputElement>(null)
+    const dropdownRef = useRef<HTMLDivElement>(null)
     const [dailyStats, setDailyStats] = useState<DailyStats>({
         totalCalories: 0,
         totalProtein: 0,
@@ -47,13 +52,11 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
             const goalRes = await fetch('/api/daily-goal')
             if (!goalRes.ok) throw new Error('Failed to fetch daily goal')
             const goal = await goalRes.json()
-            console.log('Fetched goal:', goal)
 
             // 2. Get today's consumptions
             const consumptionsRes = await fetch('/api/consumption')
             if (!consumptionsRes.ok) throw new Error('Failed to fetch consumptions')
             const consumptions: Consumption[] = await consumptionsRes.json()
-            console.log('Fetched consumptions:', consumptions)
 
             // 3. Calculate totals
             const totals = consumptions.reduce(
@@ -72,8 +75,8 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
             const newStats = {
                 totalCalories: totals.calories,
                 totalProtein: totals.protein,
-                remainingCalories: goal.calorieGoal - totals.calories,
-                remainingProtein: goal.proteinGoal - totals.protein,
+                remainingCalories: goal?.calorieGoal ? goal.calorieGoal - totals.calories : 0,
+                remainingProtein: goal?.proteinGoal ? goal.proteinGoal - totals.protein : 0,
             }
             setDailyStats(newStats)
         } catch (error) {
@@ -114,14 +117,72 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
 
             setSelectedFood('')
             setQuantity('')
+            setSearchQuery('')
         } catch (error) {
             console.error('Error recording consumption:', error)
         }
     }
 
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const query = e.target.value
+        setSearchQuery(query)
+
+        const filtered = foods.filter(food =>
+            food.name.toLowerCase().includes(query.toLowerCase())
+        )
+        setFilteredFoods(filtered)
+        setShowDropdown(true)
+    }
+
+    const handleFoodSelect = (food: Food) => {
+        setSelectedFood(food.id)
+        setSearchQuery(food.name)
+        setShowDropdown(false)
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+            searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
+            setShowDropdown(false)
+        }
+    }
+
+    const clearSearch = () => {
+        setSearchQuery('')
+        setSelectedFood('')
+        setShowDropdown(false)
+        if (searchInputRef.current) {
+            searchInputRef.current.focus()
+        }
+    }
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [])
+
+    // Update filtered foods when all foods change
+    useEffect(() => {
+        if (searchQuery) {
+            const filtered = foods.filter(food =>
+                food.name.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            setFilteredFoods(filtered)
+        }
+    }, [foods, searchQuery])
+
+    // Refresh when consumption data changes
     useEffect(() => {
         refreshDailyStats()
     }, [refreshTrigger])
+
+    // Refresh when food data changes
+    useEffect(() => {
+        fetchFoods()
+    }, [foodRefreshTrigger])
 
     useEffect(() => {
         const initializeData = async () => {
@@ -147,7 +208,12 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                     </p>
                     <div className="flex items-center gap-2 text-sm text-blue-300">
                         <div className="flex-1 h-1.5 bg-blue-900/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500" style={{ width: `${Math.min((dailyStats.totalCalories / (dailyStats.totalCalories + dailyStats.remainingCalories)) * 100, 100)}%` }}></div>
+                            <div
+                                className="h-full bg-blue-500"
+                                style={{
+                                    width: `${Math.min((dailyStats.totalCalories / (dailyStats.totalCalories + Math.max(dailyStats.remainingCalories, 0.1))) * 100, 100)}%`
+                                }}
+                            ></div>
                         </div>
                         <span>{dailyStats.totalCalories.toFixed(1)} consumed</span>
                     </div>
@@ -164,7 +230,12 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                     </p>
                     <div className="flex items-center gap-2 text-sm text-emerald-300">
                         <div className="flex-1 h-1.5 bg-emerald-900/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500" style={{ width: `${Math.min((dailyStats.totalProtein / (dailyStats.totalProtein + dailyStats.remainingProtein)) * 100, 100)}%` }}></div>
+                            <div
+                                className="h-full bg-emerald-500"
+                                style={{
+                                    width: `${Math.min((dailyStats.totalProtein / (dailyStats.totalProtein + Math.max(dailyStats.remainingProtein, 0.1))) * 100, 100)}%`
+                                }}
+                            ></div>
                         </div>
                         <span>{dailyStats.totalProtein.toFixed(1)}g consumed</span>
                     </div>
@@ -176,22 +247,60 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                 <h2 className="text-xl font-semibold text-blue-100 mb-6">Record Consumption</h2>
                 <form onSubmit={handleConsumption} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-blue-200">Select Food</label>
-                            <select
-                                value={selectedFood}
-                                onChange={(e) => setSelectedFood(e.target.value)}
-                                className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            >
-                                <option value="">Select a food</option>
-                                {foods.map((food) => (
-                                    <option key={food.id} value={food.id} className="bg-blue-900">
-                                        {food.name} ({food.caloriesPerUnit} cal, {food.proteinPerUnit}g protein)
-                                    </option>
-                                ))}
-                            </select>
+                        <div className="space-y-2 relative">
+                            <label className="block text-sm font-medium text-blue-200">Search Food</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={16} className="text-blue-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={handleSearchChange}
+                                    onFocus={() => setShowDropdown(true)}
+                                    ref={searchInputRef}
+                                    className="w-full pl-10 pr-10 bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Search for a food..."
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={clearSearch}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                    >
+                                        <X size={16} className="text-blue-400 hover:text-blue-200" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Dropdown results */}
+                            {showDropdown && filteredFoods.length > 0 && (
+                                <div
+                                    ref={dropdownRef}
+                                    className="absolute z-10 mt-1 w-full bg-blue-950 border border-blue-800/50 rounded-xl shadow-lg max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-800/50"
+                                >
+                                    {filteredFoods.map(food => (
+                                        <div
+                                            key={food.id}
+                                            onClick={() => handleFoodSelect(food)}
+                                            className="px-4 py-2 cursor-pointer hover:bg-blue-900/50 transition-colors text-blue-100"
+                                        >
+                                            <div className="font-medium">{food.name}</div>
+                                            <div className="text-xs text-blue-300">
+                                                {food.caloriesPerUnit} cal, {food.proteinPerUnit}g protein
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {showDropdown && searchQuery && filteredFoods.length === 0 && (
+                                <div className="absolute z-10 mt-1 w-full bg-blue-950 border border-blue-800/50 rounded-xl shadow-lg p-4 text-center">
+                                    <p className="text-blue-300">No foods found</p>
+                                </div>
+                            )}
                         </div>
+
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-blue-200">Quantity</label>
                             <input
@@ -208,7 +317,8 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                     </div>
                     <button
                         type="submit"
-                        className="w-full md:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-blue-950"
+                        disabled={!selectedFood || !quantity}
+                        className="w-full md:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-blue-950 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Add Consumption
                     </button>

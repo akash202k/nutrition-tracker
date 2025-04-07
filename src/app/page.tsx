@@ -62,6 +62,7 @@ export default function Home() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [selectedConsumption, setSelectedConsumption] = useState<Consumption | null>(null)
   const [refreshCounter, setRefreshCounter] = useState(0)
+  const [foodRefreshCounter, setFoodRefreshCounter] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleDelete = async (id: string) => {
@@ -122,6 +123,10 @@ export default function Home() {
     })
   }
 
+  const handleFoodUpdate = () => {
+    setFoodRefreshCounter(prev => prev + 1)
+  }
+
   if (!session) {
     return (
       <main className="min-h-[calc(100vh-64px)] pt-16 px-4">
@@ -150,6 +155,7 @@ export default function Home() {
             <NutritionTracker
               onConsumptionUpdate={fetchConsumptions}
               refreshTrigger={refreshCounter}
+              foodRefreshTrigger={foodRefreshCounter}
             />
           </div>
 
