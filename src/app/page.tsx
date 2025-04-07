@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import NutritionTracker from '@/components/NutritionTracker'
+import WeeklyProgressTracker from '@/components/WeeklyProgressTracker'
 import { Clock, Utensils, X, RefreshCcw } from 'lucide-react'
 
 interface Consumption {
@@ -145,9 +146,30 @@ export default function Home() {
   return (
     <main className="min-h-[calc(100vh-64px)] pt-8 px-4 overscroll-none">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8 drop-shadow-md">
-          Welcome back, {session.user?.name}
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white drop-shadow-md">
+            Welcome back, {session.user?.name}
+          </h1>
+
+          {/* Weekly Progress Indicators */}
+          <div className="flex items-center gap-1 md:gap-2">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center 
+                  ${i === new Date().getDay() ? 'bg-blue-900/50 border border-blue-500/50' : 'bg-blue-900/20'}`}>
+                  <span className={`text-xs ${i === new Date().getDay() ? 'text-blue-200' : 'text-blue-400'}`}>
+                    {day}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Weekly Progress Tracker */}
+        <div className="mb-8">
+          <WeeklyProgressTracker refreshTrigger={refreshCounter} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Nutrition Tracker */}
