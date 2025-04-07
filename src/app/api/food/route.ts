@@ -62,7 +62,55 @@ export async function GET() {
     }
 }
 
-// src/app/api/food/route.ts - Fixed DELETE handler
+export async function PUT(request: Request) {
+    try {
+        const session = await getServerSession(authOptions)
+
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const { id, name, caloriesPerUnit, proteinPerUnit } = await request.json()
+
+        if (!id) {
+            return NextResponse.json({ error: 'Food ID required' }, { status: 400 })
+        }
+
+        // First check if the food belongs to the user
+        const food = await prisma.food.findUnique({
+            where: {
+                id,
+                userId: session.user.id
+            }
+        })
+
+        if (!food) {
+            return NextResponse.json({ error: 'Food not found or unauthorized' }, { status: 404 })
+        }
+
+        // Update the food
+        const updatedFood = await prisma.food.update({
+            where: {
+                id,
+                userId: session.user.id
+            },
+            data: {
+                name,
+                caloriesPerUnit,
+                proteinPerUnit
+            }
+        })
+
+        return NextResponse.json(updatedFood)
+    } catch (error) {
+        console.error('Error updating food:', error)
+        return NextResponse.json(
+            { error: 'Error updating food item' },
+            { status: 500 }
+        )
+    }
+}
+
 export async function DELETE(request: Request) {
     try {
         const session = await getServerSession(authOptions)

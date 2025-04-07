@@ -149,12 +149,14 @@ export function ManageFoods({ isOpen, onClose, onFoodUpdated }: ManageFoodsProps
                     }),
                 })
             } else {
-                res = await fetch(`/api/food/${formData.id}`, {
+                // Using the updated PUT endpoint without dynamic route
+                res = await fetch('/api/food', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
+                        id: formData.id,
                         name: formData.name,
                         caloriesPerUnit: parseFloat(formData.caloriesPerUnit),
                         proteinPerUnit: parseFloat(formData.proteinPerUnit),
