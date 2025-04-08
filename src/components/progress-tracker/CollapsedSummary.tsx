@@ -4,9 +4,31 @@ import { StatsData } from './types'
 
 interface CollapsedSummaryProps {
     stats: StatsData
+    showTotalMetrics: boolean
 }
 
-const CollapsedSummary: React.FC<CollapsedSummaryProps> = ({ stats }) => {
+const CollapsedSummary: React.FC<CollapsedSummaryProps> = ({ stats, showTotalMetrics }) => {
+    // Calculate values to display based on toggle state
+    const calorieValue = showTotalMetrics
+        ? Math.round(stats.totalCalories)
+        : Math.round(stats.calories);
+
+    const proteinValue = showTotalMetrics
+        ? Math.round(stats.totalProtein)
+        : Math.round(stats.protein);
+
+    const calorieGoal = showTotalMetrics
+        ? Math.round(stats.totalCalorieGoal)
+        : Math.round(stats.avgCalorieGoal);
+
+    const proteinGoal = showTotalMetrics
+        ? Math.round(stats.totalProteinGoal)
+        : Math.round(stats.avgProteinGoal);
+
+    // Percentages are always calculated the same way
+    const caloriePercent = stats.caloriePercent;
+    const proteinPercent = stats.proteinPercent;
+
     return (
         <div className="bg-blue-900/20 p-4 rounded-xl mt-2">
             <div className="grid grid-cols-2 gap-4">
@@ -30,21 +52,21 @@ const CollapsedSummary: React.FC<CollapsedSummaryProps> = ({ stats }) => {
                                 strokeWidth="4"
                                 fill="transparent"
                                 strokeDasharray={2 * Math.PI * 20}
-                                strokeDashoffset={2 * Math.PI * 20 * (1 - Math.min(stats.caloriePercent / 100, 1))}
+                                strokeDashoffset={2 * Math.PI * 20 * (1 - Math.min(caloriePercent / 100, 1))}
                                 className="text-blue-500"
                                 strokeLinecap="round"
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-bold text-blue-100">
-                                {Math.round(stats.caloriePercent)}%
+                                {Math.round(caloriePercent)}%
                             </span>
                         </div>
                     </div>
                     <div>
                         <p className="text-sm font-medium text-blue-300">Calories</p>
                         <p className="text-white">
-                            {Math.round(stats.totalCalories)} / {Math.round(stats.totalCalorieGoal)}
+                            {calorieValue} / {calorieGoal} {!showTotalMetrics && <span className="text-xs text-blue-400">per day</span>}
                         </p>
                     </div>
                 </div>
@@ -68,21 +90,21 @@ const CollapsedSummary: React.FC<CollapsedSummaryProps> = ({ stats }) => {
                                 strokeWidth="4"
                                 fill="transparent"
                                 strokeDasharray={2 * Math.PI * 20}
-                                strokeDashoffset={2 * Math.PI * 20 * (1 - Math.min(stats.proteinPercent / 100, 1))}
+                                strokeDashoffset={2 * Math.PI * 20 * (1 - Math.min(proteinPercent / 100, 1))}
                                 className="text-emerald-500"
                                 strokeLinecap="round"
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-bold text-emerald-100">
-                                {Math.round(stats.proteinPercent)}%
+                                {Math.round(proteinPercent)}%
                             </span>
                         </div>
                     </div>
                     <div>
                         <p className="text-sm font-medium text-emerald-300">Protein</p>
                         <p className="text-white">
-                            {Math.round(stats.totalProtein)}g / {Math.round(stats.totalProteinGoal)}g
+                            {proteinValue}g / {proteinGoal}g {!showTotalMetrics && <span className="text-xs text-emerald-400">per day</span>}
                         </p>
                     </div>
                 </div>

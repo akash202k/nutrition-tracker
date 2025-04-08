@@ -253,15 +253,12 @@ const WeeklyProgressTracker: React.FC<WeeklyProgressTrackerProps> = ({ refreshTr
         }
 
         // For current week mode, only count days up to today
-        let relevantData = weekData
-        if (dateRange === 'currentWeek') {
-            const today = new Date()
-            relevantData = weekData.filter(day => {
-                const dayDate = new Date(day.date)
-                return !isAfter(dayDate, today)
-            })
-        }
+        const today = new Date()
+        const relevantData = dateRange === 'currentWeek'
+            ? weekData.filter(day => !isAfter(new Date(day.date), today))
+            : weekData;
 
+        // Calculate the total consumptions and goals
         const totals = relevantData.reduce((acc, day) => {
             return {
                 calories: acc.calories + day.caloriesConsumed,
@@ -271,20 +268,30 @@ const WeeklyProgressTracker: React.FC<WeeklyProgressTrackerProps> = ({ refreshTr
             }
         }, { calories: 0, protein: 0, calorieGoalTotal: 0, proteinGoalTotal: 0 })
 
-        const count = relevantData.length || 1; // Avoid division by zero
+        const daysCount = relevantData.length || 1; // Avoid division by zero
+
+        // Calculate percentages based on totals or averages
+        const caloriePercent = (totals.calories / totals.calorieGoalTotal) * 100;
+        const proteinPercent = (totals.protein / totals.proteinGoalTotal) * 100;
 
         return {
-            calories: totals.calories / count,
-            protein: totals.protein / count,
-            caloriePercent: (totals.calories / totals.calorieGoalTotal) * 100,
-            proteinPercent: (totals.protein / totals.proteinGoalTotal) * 100,
+            // Average daily values
+            calories: totals.calories / daysCount,
+            protein: totals.protein / daysCount,
+            // Current percentages (based on accumulated values vs. accumulated goals)
+            caloriePercent: caloriePercent,
+            proteinPercent: proteinPercent,
+            // Total values
             totalCalories: totals.calories,
             totalProtein: totals.protein,
-            avgCalorieGoal: totals.calorieGoalTotal / count,
-            avgProteinGoal: totals.proteinGoalTotal / count,
+            // Average goal values (should be fairly constant unless goals changed during period)
+            avgCalorieGoal: totals.calorieGoalTotal / daysCount,
+            avgProteinGoal: totals.proteinGoalTotal / daysCount,
+            // Total goal values
             totalCalorieGoal: totals.calorieGoalTotal,
             totalProteinGoal: totals.proteinGoalTotal,
-            daysCount: count
+            // Number of days counted
+            daysCount: daysCount
         }
     }
 
@@ -418,7 +425,7 @@ const WeeklyProgressTracker: React.FC<WeeklyProgressTrackerProps> = ({ refreshTr
 
             {/* Weekly summary banner when collapsed */}
             {!expanded && !isLoading && weekData.length > 0 && (
-                <CollapsedSummary stats={stats} />
+                <CollapsedSummary stats={stats} showTotalMetrics={showTotalMetrics} />
             )}
 
             {/* Day detail popup */}
