@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import NutritionTracker from '@/components/NutritionTracker'
-import WeeklyProgressTracker from '@/components/WeeklyProgressTracker'
+import WeeklyProgressTracker from '@/components/progress-tracker/WeeklyProgressTracker'
 import { Clock, Utensils, X, RefreshCcw } from 'lucide-react'
 
 interface Consumption {
