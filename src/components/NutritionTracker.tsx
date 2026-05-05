@@ -174,6 +174,14 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
     const getTodayString = () => format(new Date(), 'yyyy-MM-dd')
     const maxDate = getTodayString()
 
+    const handleDateChange = (date: string) => {
+        setSelectedDate(date)
+        // Notify parent of date change
+        if (onDateChange) {
+            onDateChange(date)
+        }
+    }
+
     // Close dropdown on outside click
     useEffect(() => {
         document.addEventListener('mousedown', handleClickOutside)
@@ -338,7 +346,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                             <input
                                 type="date"
                                 value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
+                                onChange={(e) => handleDateChange(e.target.value)}
                                 max={maxDate}
                                 className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
