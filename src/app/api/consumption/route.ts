@@ -11,14 +11,27 @@ export async function POST(request: Request) {
     }
 
     try {
-        const { foodId, quantity } = await request.json()
+        const { foodId, quantity, date } = await request.json()
+
+        // Validate that date is not in the future
+        let consumptionDate = new Date()
+        if (date) {
+            const providedDate = new Date(date)
+            if (providedDate > new Date()) {
+                return NextResponse.json(
+                    { error: 'Cannot add consumption for future dates' },
+                    { status: 400 }
+                )
+            }
+            consumptionDate = providedDate
+        }
 
         const consumption = await prisma.consumption.create({
             data: {
                 userId: session.user.id,
                 foodId,
                 quantity,
-                date: new Date(), // Add this line to explicitly set the date
+                date: consumptionDate,
             },
             include: {
                 food: true,

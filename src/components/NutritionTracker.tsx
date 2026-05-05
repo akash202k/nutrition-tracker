@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Search, X } from 'lucide-react'
+import { format } from 'date-fns'
 
 interface Props {
     onConsumptionUpdate?: () => void;
@@ -39,6 +40,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
     const [filteredFoods, setFilteredFoods] = useState<Food[]>([])
     const searchInputRef = useRef<HTMLInputElement>(null)
     const dropdownRef = useRef<HTMLDivElement>(null)
+    const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [dailyStats, setDailyStats] = useState<DailyStats>({
         totalCalories: 0,
         totalProtein: 0,
@@ -107,10 +109,14 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                 body: JSON.stringify({
                     foodId: selectedFood,
                     quantity: parseFloat(quantity),
+                    date: selectedDate,
                 }),
             })
 
-            if (!res.ok) throw new Error('Failed to record consumption')
+            if (!res.ok) {
+                const errorData = await res.json()
+                throw new Error(errorData.error || 'Failed to record consumption')
+            }
 
             await refreshDailyStats()
             onConsumptionUpdate?.()
@@ -118,6 +124,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
             setSelectedFood('')
             setQuantity('')
             setSearchQuery('')
+            setSelectedDate(format(new Date(), 'yyyy-MM-dd'))
         } catch (error) {
             console.error('Error recording consumption:', error)
         }
@@ -155,6 +162,9 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
             searchInputRef.current.focus()
         }
     }
+
+    const getTodayString = () => format(new Date(), 'yyyy-MM-dd')
+    const maxDate = getTodayString()
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -246,7 +256,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
             <div className="bg-blue-950/20 backdrop-blur-md p-6 rounded-2xl border border-blue-900/20">
                 <h2 className="text-xl font-semibold text-blue-100 mb-6">Record Consumption</h2>
                 <form onSubmit={handleConsumption} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2 relative">
                             <label className="block text-sm font-medium text-blue-200">Search Food</label>
                             <div className="relative">
@@ -314,6 +324,21 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                                 placeholder="Enter quantity"
                             />
                         </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-blue-200">Date</label>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                max={maxDate}
+                                className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="text-xs text-blue-300">
+                        You can add food consumption for any past day or today
                     </div>
                     <button
                         type="submit"

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { format } from 'date-fns'
 
 interface Food {
     id: string
@@ -11,25 +12,30 @@ interface Food {
 
 interface ConsumptionFormProps {
     foods: Food[]
-    onConsume: (foodId: string, quantity: number) => void
+    onConsume: (foodId: string, quantity: number, date?: string) => void
 }
 
 export function ConsumptionForm({ foods, onConsume }: ConsumptionFormProps) {
     const [selectedFood, setSelectedFood] = useState('')
     const [quantity, setQuantity] = useState('')
+    const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (selectedFood && quantity) {
-            onConsume(selectedFood, parseFloat(quantity))
+            onConsume(selectedFood, parseFloat(quantity), selectedDate)
             setSelectedFood('')
             setQuantity('')
+            setSelectedDate(format(new Date(), 'yyyy-MM-dd'))
         }
     }
 
+    const getTodayString = () => format(new Date(), 'yyyy-MM-dd')
+    const maxDate = getTodayString()
+
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Select Food</label>
                     <select
@@ -56,6 +62,20 @@ export function ConsumptionForm({ foods, onConsume }: ConsumptionFormProps) {
                         required
                     />
                 </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Date</label>
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        max={maxDate}
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+                        required
+                    />
+                </div>
+            </div>
+            <div className="text-xs text-gray-600">
+                You can add food consumption for any past day or today
             </div>
             <button
                 type="submit"
