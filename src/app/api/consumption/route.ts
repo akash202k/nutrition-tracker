@@ -56,14 +56,35 @@ export async function GET(request: Request) {
     }
 
     try {
-        const startOfDay = new Date()
+        const { searchParams } = new URL(request.url)
+        const dateParam = searchParams.get('date')
+
+        let startOfDay = new Date()
         startOfDay.setHours(0, 0, 0, 0)
+
+        // If a specific date is provided, use that date
+        if (dateParam) {
+            const providedDate = new Date(dateParam)
+            if (isNaN(providedDate.getTime())) {
+                return NextResponse.json(
+                    { error: 'Invalid date format. Use YYYY-MM-DD' },
+                    { status: 400 }
+                )
+            }
+            startOfDay = new Date(providedDate)
+            startOfDay.setHours(0, 0, 0, 0)
+        }
+
+        // Calculate end of day
+        const endOfDay = new Date(startOfDay)
+        endOfDay.setHours(23, 59, 59, 999)
 
         const consumptions = await prisma.consumption.findMany({
             where: {
                 userId: session.user.id,
                 date: {
                     gte: startOfDay,
+                    lte: endOfDay,
                 },
             },
             include: {

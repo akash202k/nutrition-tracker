@@ -5,9 +5,11 @@ import { Search, X } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Props {
-    onConsumptionUpdate?: () => void;
+    onConsumptionUpdate?: (date?: string) => void;
     refreshTrigger?: number;
     foodRefreshTrigger?: number;
+    selectedViewDate?: string;
+    onDateChange?: (date: string) => void;
 }
 
 interface Food {
@@ -31,7 +33,7 @@ interface Consumption {
     food: Food
 }
 
-const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger, foodRefreshTrigger }) => {
+const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger, foodRefreshTrigger, selectedViewDate, onDateChange }) => {
     const [foods, setFoods] = useState<Food[]>([])
     const [selectedFood, setSelectedFood] = useState('')
     const [quantity, setQuantity] = useState('')
@@ -55,8 +57,9 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
             if (!goalRes.ok) throw new Error('Failed to fetch daily goal')
             const goal = await goalRes.json()
 
-            // 2. Get today's consumptions
-            const consumptionsRes = await fetch('/api/consumption')
+            // 2. Get consumptions for the selected view date
+            const dateParam = selectedViewDate || format(new Date(), 'yyyy-MM-dd')
+            const consumptionsRes = await fetch(`/api/consumption?date=${dateParam}`)
             if (!consumptionsRes.ok) throw new Error('Failed to fetch consumptions')
             const consumptions: Consumption[] = await consumptionsRes.json()
 
@@ -118,8 +121,13 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                 throw new Error(errorData.error || 'Failed to record consumption')
             }
 
+            // Update selected view date to the date that was just added
+            if (onDateChange) {
+                onDateChange(selectedDate)
+            }
+
             await refreshDailyStats()
-            onConsumptionUpdate?.()
+            onConsumptionUpdate?.(selectedDate)
 
             setSelectedFood('')
             setQuantity('')
@@ -187,7 +195,7 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
     // Refresh when consumption data changes
     useEffect(() => {
         refreshDailyStats()
-    }, [refreshTrigger])
+    }, [refreshTrigger, selectedViewDate])
 
     // Refresh when food data changes
     useEffect(() => {

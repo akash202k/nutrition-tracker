@@ -2,6 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
 import NutritionTracker from '@/components/NutritionTracker'
 import WeeklyProgressTracker from '@/components/progress-tracker/WeeklyProgressTracker'
 import { Clock, Utensils, X, RefreshCcw } from 'lucide-react'
@@ -65,6 +66,7 @@ export default function Home() {
   const [refreshCounter, setRefreshCounter] = useState(0)
   const [foodRefreshCounter, setFoodRefreshCounter] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [selectedViewDate, setSelectedViewDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   const handleDelete = async (id: string) => {
     try {
@@ -82,10 +84,11 @@ export default function Home() {
     }
   }
 
-  const fetchConsumptions = async () => {
+  const fetchConsumptions = async (date?: string) => {
     try {
       setIsRefreshing(true)
-      const res = await fetch('/api/consumption', {
+      const dateParam = date || selectedViewDate
+      const res = await fetch(`/api/consumption?date=${dateParam}`, {
         cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
@@ -106,15 +109,15 @@ export default function Home() {
 
   useEffect(() => {
     if (session) {
-      fetchConsumptions()
+      fetchConsumptions(selectedViewDate)
       // Set up periodic refresh
       const refreshInterval = setInterval(() => {
-        fetchConsumptions()
+        fetchConsumptions(selectedViewDate)
       }, 30000) // Refresh every 30 seconds
 
       return () => clearInterval(refreshInterval)
     }
-  }, [session])
+  }, [session, selectedViewDate])
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('en-US', {
@@ -178,6 +181,8 @@ export default function Home() {
               onConsumptionUpdate={fetchConsumptions}
               refreshTrigger={refreshCounter}
               foodRefreshTrigger={foodRefreshCounter}
+              selectedViewDate={selectedViewDate}
+              onDateChange={setSelectedViewDate}
             />
           </div>
 
@@ -187,11 +192,11 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-blue-100 flex items-center gap-2">
                   <Clock size={20} />
-                  Today's Consumption
+                  Consumption for {format(new Date(selectedViewDate), 'EEE, MMM d')}
                 </h2>
                 <button
                   onClick={() => {
-                    fetchConsumptions()
+                    fetchConsumptions(selectedViewDate)
                     setRefreshCounter(prev => prev + 1)
                   }}
                   disabled={isRefreshing}
