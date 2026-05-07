@@ -96,9 +96,11 @@ export default function Home() {
       })
       if (!res.ok) throw new Error('Failed to fetch consumptions')
       const data = await res.json()
-      const sortedData = data.sort((a: Consumption, b: Consumption) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      )
+      const sortedData = data.sort((a: Consumption, b: Consumption) => {
+        const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime()
+        if (dateCompare !== 0) return dateCompare
+        return b.id.localeCompare(a.id)
+      })
       setConsumptions(sortedData)
     } catch (error) {
       console.error('Error fetching consumptions:', error)

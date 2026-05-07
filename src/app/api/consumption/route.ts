@@ -90,9 +90,10 @@ export async function GET(request: Request) {
             include: {
                 food: true,
             },
-            orderBy: {
-                date: 'desc',
-            },
+            orderBy: [
+                { date: 'desc' },
+                { id: 'desc' },
+            ],
         })
 
         // Transform the date before sending
