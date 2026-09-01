@@ -36,38 +36,43 @@ model Session {
 }
 
 model User {
-  id            String        @id @default(auto()) @map("_id") @db.ObjectId
-  name          String?
-  email         String?       @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  foods         Food[]
-  consumptions  Consumption[]
-  dailyGoals    DailyGoal[]
+  id                   String                   @id @default(auto()) @map("_id") @db.ObjectId
+  name                 String?
+  email                String?                  @unique
+  emailVerified        DateTime?
+  image                String?
+  accounts             Account[]
+  sessions             Session[]
+  foods                Food[]
+  consumptions         Consumption[]
+  dailyGoals           DailyGoal[]
+  weeklyMealTemplates  WeeklyMealPlanTemplate[]
+  dailyMealPlans       DailyMealPlan[]
 }
 
 model Food {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String        @db.ObjectId
+  id              String                 @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String                 @db.ObjectId
   name            String
   caloriesPerUnit Float
   proteinPerUnit  Float
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
   consumptions    Consumption[]
-  user            User          @relation(fields: [userId], references: [id])
+  templateItems   WeeklyMealPlanItem[]
+  planItems       DailyMealPlanItem[]
+  user            User                   @relation(fields: [userId], references: [id])
 }
 
 model Consumption {
-  id       String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId   String   @db.ObjectId
-  foodId   String   @db.ObjectId
-  quantity Float
-  date     DateTime @default(now())
-  food     Food     @relation(fields: [foodId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String              @db.ObjectId
+  foodId       String              @db.ObjectId
+  quantity     Float
+  date         DateTime            @default(now())
+  food         Food                @relation(fields: [foodId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  planItem     DailyMealPlanItem?
 }
 
 model DailyGoal {
@@ -79,9 +84,51 @@ model DailyGoal {
   user        User     @relation(fields: [userId], references: [id])
 }
 
-// model EarnedCal {
-//   id            String @id @default(auto()) @map("_id") @db.ObjectId
-//   userId        String @db.ObjectId
-//   calorieEarned Float
-//   activity      String
-// }
+// dayOfWeek: 0 = Monday ... 6 = Sunday (matches progress tracker weekStartsOn: 1)
+model WeeklyMealPlanTemplate {
+  id        String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String               @db.ObjectId
+  dayOfWeek Int
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  items     WeeklyMealPlanItem[]
+  user      User                 @relation(fields: [userId], references: [id])
+
+  @@unique([userId, dayOfWeek])
+}
+
+model WeeklyMealPlanItem {
+  id         String                 @id @default(auto()) @map("_id") @db.ObjectId
+  templateId String                 @db.ObjectId
+  foodId     String                 @db.ObjectId
+  quantity   Float
+  sortOrder  Int                    @default(0)
+  template   WeeklyMealPlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  food       Food                   @relation(fields: [foodId], references: [id])
+}
+
+model DailyMealPlan {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String              @db.ObjectId
+  date            DateTime
+  sourceDayOfWeek Int?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  items           DailyMealPlanItem[]
+  user            User                @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model DailyMealPlanItem {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  planId        String        @db.ObjectId
+  foodId        String        @db.ObjectId
+  quantity      Float
+  completed     Boolean       @default(false)
+  consumptionId String?       @unique @db.ObjectId
+  sortOrder     Int           @default(0)
+  plan          DailyMealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  food          Food          @relation(fields: [foodId], references: [id])
+  consumption   Consumption?  @relation(fields: [consumptionId], references: [id])
+}

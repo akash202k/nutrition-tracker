@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/lib/auth'
+import { getSessionOrBypass } from '@/lib/auth'
+import { formatLocalDate, getDayBounds } from '@/lib/meal-plan'
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrBypass()
 
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,14 +16,27 @@ export async function POST(request: Request) {
         // Validate that date is not in the future
         let consumptionDate = new Date()
         if (date) {
-            const providedDate = new Date(date)
-            if (providedDate > new Date()) {
+            const bounds = getDayBounds(date)
+            if (!bounds) {
+                return NextResponse.json(
+                    { error: 'Invalid date format. Use YYYY-MM-DD' },
+                    { status: 400 }
+                )
+            }
+            const today = formatLocalDate(new Date())
+            if (date > today) {
                 return NextResponse.json(
                     { error: 'Cannot add consumption for future dates' },
                     { status: 400 }
                 )
             }
-            consumptionDate = providedDate
+            // Keep wall-clock time in IST-local day: use now if logging today, else noon local
+            if (date === today) {
+                consumptionDate = new Date()
+            } else {
+                consumptionDate = new Date(bounds.startOfDay)
+                consumptionDate.setHours(12, 0, 0, 0)
+            }
         }
 
         const consumption = await prisma.consumption.create({
@@ -49,7 +62,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrBypass()
 
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -59,25 +72,25 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url)
         const dateParam = searchParams.get('date')
 
-        let startOfDay = new Date()
-        startOfDay.setHours(0, 0, 0, 0)
+        let startOfDay: Date
+        let endOfDay: Date
 
-        // If a specific date is provided, use that date
         if (dateParam) {
-            const providedDate = new Date(dateParam)
-            if (isNaN(providedDate.getTime())) {
+            const bounds = getDayBounds(dateParam)
+            if (!bounds) {
                 return NextResponse.json(
                     { error: 'Invalid date format. Use YYYY-MM-DD' },
                     { status: 400 }
                 )
             }
-            startOfDay = new Date(providedDate)
-            startOfDay.setHours(0, 0, 0, 0)
+            startOfDay = bounds.startOfDay
+            endOfDay = bounds.endOfDay
+        } else {
+            const today = formatLocalDate(new Date())
+            const bounds = getDayBounds(today)!
+            startOfDay = bounds.startOfDay
+            endOfDay = bounds.endOfDay
         }
-
-        // Calculate end of day
-        const endOfDay = new Date(startOfDay)
-        endOfDay.setHours(23, 59, 59, 999)
 
         const consumptions = await prisma.consumption.findMany({
             where: {
@@ -115,7 +128,7 @@ export async function GET(request: Request) {
 
 // Add this DELETE method to your existing route.ts
 export async function DELETE(request: Request) {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrBypass()
 
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -128,6 +141,17 @@ export async function DELETE(request: Request) {
         if (!id) {
             return NextResponse.json({ error: 'Consumption ID required' }, { status: 400 })
         }
+
+        // Clear any meal-plan item linked to this consumption
+        await prisma.dailyMealPlanItem.updateMany({
+            where: {
+                consumptionId: id,
+            },
+            data: {
+                completed: false,
+                consumptionId: null,
+            },
+        })
 
         await prisma.consumption.delete({
             where: {

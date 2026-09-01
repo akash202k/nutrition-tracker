@@ -1,12 +1,11 @@
 // src/app/api/food/route.ts
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/lib/auth'
+import { getSessionOrBypass } from '@/lib/auth'
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions)
+        const session = await getSessionOrBypass()
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,7 +35,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
+        const session = await getSessionOrBypass()
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -64,7 +63,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
     try {
-        const session = await getServerSession(authOptions)
+        const session = await getSessionOrBypass()
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -113,7 +112,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
     try {
-        const session = await getServerSession(authOptions)
+        const session = await getSessionOrBypass()
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -137,6 +136,14 @@ export async function DELETE(request: Request) {
         if (!food) {
             return NextResponse.json({ error: 'Food not found or unauthorized' }, { status: 404 })
         }
+
+        // Clear meal-plan references to this food
+        await prisma.dailyMealPlanItem.deleteMany({
+            where: { foodId: id },
+        })
+        await prisma.weeklyMealPlanItem.deleteMany({
+            where: { foodId: id },
+        })
 
         // Delete all consumption records associated with this food
         await prisma.consumption.deleteMany({

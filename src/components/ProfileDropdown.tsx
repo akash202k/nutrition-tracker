@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { signOut, useSession } from 'next-auth/react'
+import { signOut } from 'next-auth/react'
 import { LogOut, User, Trash2, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
+import { isClientAuthDisabled, useAppSession } from '@/lib/use-app-session'
 
 export function ProfileDropdown() {
-    const { data: session } = useSession()
+    const { data: session } = useAppSession()
+    const authDisabled = isClientAuthDisabled()
     const [isOpen, setIsOpen] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -41,7 +43,6 @@ export function ProfileDropdown() {
             })
 
             if (res.ok) {
-                // Sign out and redirect to home page
                 await signOut({ callbackUrl: '/' })
             } else {
                 const data = await res.json()
@@ -85,29 +86,35 @@ export function ProfileDropdown() {
                         <div className="px-4 py-3 border-b border-blue-900/30">
                             <div className="text-sm font-medium text-white truncate">{session.user?.name}</div>
                             <div className="text-xs text-blue-300 truncate">{session.user?.email}</div>
+                            {authDisabled && (
+                                <div className="mt-1 text-xs text-amber-300">Auth off (local)</div>
+                            )}
                         </div>
 
-                        <button
-                            onClick={() => signOut({ callbackUrl: '/' })}
-                            className="w-full text-left px-4 py-2 text-sm text-blue-200 hover:bg-blue-900/50 hover:text-white flex items-center gap-2 transition-colors"
-                        >
-                            <LogOut size={16} />
-                            <span>Sign Out</span>
-                        </button>
+                        {!authDisabled && (
+                            <button
+                                onClick={() => signOut({ callbackUrl: '/' })}
+                                className="w-full text-left px-4 py-2 text-sm text-blue-200 hover:bg-blue-900/50 hover:text-white flex items-center gap-2 transition-colors"
+                            >
+                                <LogOut size={16} />
+                                <span>Sign Out</span>
+                            </button>
+                        )}
 
-                        <button
-                            onClick={() => setShowDeleteConfirm(true)}
-                            className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/30 hover:text-red-200 flex items-center gap-2 transition-colors"
-                        >
-                            <Trash2 size={16} />
-                            <span>Delete Account</span>
-                        </button>
+                        {!authDisabled && (
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/30 hover:text-red-200 flex items-center gap-2 transition-colors"
+                            >
+                                <Trash2 size={16} />
+                                <span>Delete Account</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Delete Account Confirmation Modal */}
-            {showDeleteConfirm && (
+            {showDeleteConfirm && !authDisabled && (
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60]">
                     <div className="bg-[#020617] border border-blue-900/20 rounded-xl p-6 max-w-md w-full mx-4">
                         <h3 className="text-xl font-semibold text-white mb-4">Delete Account</h3>
@@ -156,4 +163,4 @@ export function ProfileDropdown() {
             )}
         </div>
     )
-}   
+}

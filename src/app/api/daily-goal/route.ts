@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/lib/auth'
+import { getSessionOrBypass } from '@/lib/auth'
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrBypass()
 
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrBypass()
 
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -57,7 +56,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-    const session = await getServerSession(authOptions)
+    const session = await getSessionOrBypass()
 
     if (!session?.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

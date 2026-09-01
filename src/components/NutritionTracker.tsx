@@ -1,29 +1,19 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, X } from 'lucide-react'
 import { format } from 'date-fns'
+import { FoodSearchPicker } from '@/components/FoodSearchPicker'
+import { computeDailyStats, sumItemMacros } from '@/lib/nutrition'
+import type { DailyNutritionStats, Food, NutritionTotals } from '@/types'
 
 interface Props {
-    onConsumptionUpdate?: (date?: string) => void;
-    refreshTrigger?: number;
-    foodRefreshTrigger?: number;
-    selectedViewDate?: string;
-    onDateChange?: (date: string) => void;
-}
-
-interface Food {
-    id: string
-    name: string
-    caloriesPerUnit: number
-    proteinPerUnit: number
-}
-
-interface DailyStats {
-    totalCalories: number
-    totalProtein: number
-    remainingCalories: number
-    remainingProtein: number
+    onConsumptionUpdate?: (date?: string) => void
+    refreshTrigger?: number
+    foodRefreshTrigger?: number
+    selectedViewDate?: string
+    onDateChange?: (date: string) => void
+    /** Planned macros from the day plan panel — avoids a second meal-plan materialize GET */
+    plannedTotals?: NutritionTotals
 }
 
 interface Consumption {
@@ -33,57 +23,61 @@ interface Consumption {
     food: Food
 }
 
-const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger, foodRefreshTrigger, selectedViewDate, onDateChange }) => {
+const emptyStats: DailyNutritionStats = {
+    consumedCalories: 0,
+    consumedProtein: 0,
+    plannedCalories: 0,
+    plannedProtein: 0,
+    remainingCalories: 0,
+    remainingProtein: 0,
+    calorieGoal: 0,
+    proteinGoal: 0,
+}
+
+const emptyTotals: NutritionTotals = { calories: 0, protein: 0 }
+
+const NutritionTracker: React.FC<Props> = ({
+    onConsumptionUpdate,
+    refreshTrigger,
+    foodRefreshTrigger,
+    selectedViewDate,
+    onDateChange,
+    plannedTotals = emptyTotals,
+}) => {
     const [foods, setFoods] = useState<Food[]>([])
     const [selectedFood, setSelectedFood] = useState('')
     const [quantity, setQuantity] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
-    const [showDropdown, setShowDropdown] = useState(false)
-    const [filteredFoods, setFilteredFoods] = useState<Food[]>([])
-    const searchInputRef = useRef<HTMLInputElement>(null)
-    const dropdownRef = useRef<HTMLDivElement>(null)
     const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-    const [dailyStats, setDailyStats] = useState<DailyStats>({
-        totalCalories: 0,
-        totalProtein: 0,
-        remainingCalories: 0,
-        remainingProtein: 0,
-    })
+    const [dailyStats, setDailyStats] = useState<DailyNutritionStats>(emptyStats)
+    const plannedTotalsRef = useRef(plannedTotals)
+    plannedTotalsRef.current = plannedTotals
 
     const refreshDailyStats = async () => {
         try {
-            // 1. Get daily goal
-            const goalRes = await fetch('/api/daily-goal')
-            if (!goalRes.ok) throw new Error('Failed to fetch daily goal')
-            const goal = await goalRes.json()
-
-            // 2. Get consumptions for the selected view date
             const dateParam = selectedViewDate || format(new Date(), 'yyyy-MM-dd')
-            const consumptionsRes = await fetch(`/api/consumption?date=${dateParam}`)
+
+            const [goalRes, consumptionsRes] = await Promise.all([
+                fetch('/api/daily-goal'),
+                fetch(`/api/consumption?date=${dateParam}`),
+            ])
+
+            if (!goalRes.ok) throw new Error('Failed to fetch daily goal')
             if (!consumptionsRes.ok) throw new Error('Failed to fetch consumptions')
+
+            const goal = await goalRes.json()
             const consumptions: Consumption[] = await consumptionsRes.json()
+            const consumed = sumItemMacros(consumptions)
+            const planned = plannedTotalsRef.current
 
-            // 3. Calculate totals
-            const totals = consumptions.reduce(
-                (acc, consumption) => {
-                    const calories = consumption.food.caloriesPerUnit * consumption.quantity
-                    const protein = consumption.food.proteinPerUnit * consumption.quantity
-                    return {
-                        calories: acc.calories + calories,
-                        protein: acc.protein + protein,
-                    }
-                },
-                { calories: 0, protein: 0 }
+            setDailyStats(
+                computeDailyStats({
+                    calorieGoal: goal?.calorieGoal ?? 0,
+                    proteinGoal: goal?.proteinGoal ?? 0,
+                    consumed,
+                    planned,
+                })
             )
-
-            // 4. Update stats
-            const newStats = {
-                totalCalories: totals.calories,
-                totalProtein: totals.protein,
-                remainingCalories: goal?.calorieGoal ? goal.calorieGoal - totals.calories : 0,
-                remainingProtein: goal?.proteinGoal ? goal.proteinGoal - totals.protein : 0,
-            }
-            setDailyStats(newStats)
         } catch (error) {
             console.error('Error refreshing daily stats:', error)
         }
@@ -121,7 +115,6 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                 throw new Error(errorData.error || 'Failed to record consumption')
             }
 
-            // Update selected view date to the date that was just added
             if (onDateChange) {
                 onDateChange(selectedDate)
             }
@@ -138,74 +131,29 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
         }
     }
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const query = e.target.value
-        setSearchQuery(query)
-
-        const filtered = foods.filter(food =>
-            food.name.toLowerCase().includes(query.toLowerCase())
-        )
-        setFilteredFoods(filtered)
-        setShowDropdown(true)
-    }
-
-    const handleFoodSelect = (food: Food) => {
-        setSelectedFood(food.id)
-        setSearchQuery(food.name)
-        setShowDropdown(false)
-    }
-
-    const handleClickOutside = (e: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-            searchInputRef.current && !searchInputRef.current.contains(e.target as Node)) {
-            setShowDropdown(false)
-        }
-    }
-
-    const clearSearch = () => {
-        setSearchQuery('')
-        setSelectedFood('')
-        setShowDropdown(false)
-        if (searchInputRef.current) {
-            searchInputRef.current.focus()
-        }
-    }
-
     const getTodayString = () => format(new Date(), 'yyyy-MM-dd')
     const maxDate = getTodayString()
 
     const handleDateChange = (date: string) => {
         setSelectedDate(date)
-        // Notify parent of date change
         if (onDateChange) {
             onDateChange(date)
         }
     }
 
-    // Close dropdown on outside click
-    useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside)
-        }
-    }, [])
-
-    // Update filtered foods when all foods change
-    useEffect(() => {
-        if (searchQuery) {
-            const filtered = foods.filter(food =>
-                food.name.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-            setFilteredFoods(filtered)
-        }
-    }, [foods, searchQuery])
-
-    // Refresh when consumption data changes
     useEffect(() => {
         refreshDailyStats()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshTrigger, selectedViewDate])
 
-    // Refresh when food data changes
+    useEffect(() => {
+        setDailyStats((prev) => ({
+            ...prev,
+            plannedCalories: plannedTotals.calories,
+            plannedProtein: plannedTotals.protein,
+        }))
+    }, [plannedTotals.calories, plannedTotals.protein])
+
     useEffect(() => {
         fetchFoods()
     }, [foodRefreshTrigger])
@@ -217,11 +165,17 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
         }
 
         initializeData()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    useEffect(() => {
+        if (selectedViewDate) {
+            setSelectedDate(selectedViewDate)
+        }
+    }, [selectedViewDate])
 
     return (
         <div className="space-y-6">
-            {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="bg-blue-950/20 backdrop-blur-md p-4 rounded-2xl border border-blue-900/20">
                     <div className="flex items-center justify-between mb-2">
@@ -237,12 +191,15 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                             <div
                                 className="h-full bg-blue-500"
                                 style={{
-                                    width: `${Math.min((dailyStats.totalCalories / (dailyStats.totalCalories + Math.max(dailyStats.remainingCalories, 0.1))) * 100, 100)}%`
+                                    width: `${Math.min((dailyStats.consumedCalories / (dailyStats.consumedCalories + Math.max(dailyStats.remainingCalories, 0.1))) * 100, 100)}%`
                                 }}
                             ></div>
                         </div>
-                        <span>{dailyStats.totalCalories.toFixed(1)} consumed</span>
+                        <span>{dailyStats.consumedCalories.toFixed(1)} consumed</span>
                     </div>
+                    <p className="text-xs text-blue-400 mt-2">
+                        Planned {dailyStats.plannedCalories.toFixed(1)} cal
+                    </p>
                 </div>
 
                 <div className="bg-blue-950/20 backdrop-blur-md p-4 rounded-2xl border border-blue-900/20">
@@ -259,102 +216,51 @@ const NutritionTracker: React.FC<Props> = ({ onConsumptionUpdate, refreshTrigger
                             <div
                                 className="h-full bg-emerald-500"
                                 style={{
-                                    width: `${Math.min((dailyStats.totalProtein / (dailyStats.totalProtein + Math.max(dailyStats.remainingProtein, 0.1))) * 100, 100)}%`
+                                    width: `${Math.min((dailyStats.consumedProtein / (dailyStats.consumedProtein + Math.max(dailyStats.remainingProtein, 0.1))) * 100, 100)}%`
                                 }}
                             ></div>
                         </div>
-                        <span>{dailyStats.totalProtein.toFixed(1)}g consumed</span>
+                        <span>{dailyStats.consumedProtein.toFixed(1)}g consumed</span>
                     </div>
+                    <p className="text-xs text-emerald-400/80 mt-2">
+                        Planned {dailyStats.plannedProtein.toFixed(1)}g
+                    </p>
                 </div>
             </div>
 
-            {/* Record Consumption Form */}
             <div className="bg-blue-950/20 backdrop-blur-md p-6 rounded-2xl border border-blue-900/20">
-                <h2 className="text-xl font-semibold text-blue-100 mb-6">Record Consumption</h2>
+                <h2 className="text-xl font-semibold text-blue-100 mb-6">Record extra</h2>
                 <form onSubmit={handleConsumption} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2 relative">
-                            <label className="block text-sm font-medium text-blue-200">Search Food</label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search size={16} className="text-blue-400" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={handleSearchChange}
-                                    onFocus={() => setShowDropdown(true)}
-                                    ref={searchInputRef}
-                                    className="w-full pl-10 pr-10 bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Search for a food..."
-                                />
-                                {searchQuery && (
-                                    <button
-                                        type="button"
-                                        onClick={clearSearch}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                    >
-                                        <X size={16} className="text-blue-400 hover:text-blue-200" />
-                                    </button>
-                                )}
-                            </div>
+                    <FoodSearchPicker
+                        foods={foods}
+                        selectedFoodId={selectedFood}
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        onFoodSelect={(food) => {
+                            setSelectedFood(food.id)
+                            setSearchQuery(food.name)
+                        }}
+                        onClear={() => {
+                            setSelectedFood('')
+                            setSearchQuery('')
+                        }}
+                        quantity={quantity}
+                        onQuantityChange={setQuantity}
+                    />
 
-                            {/* Dropdown results */}
-                            {showDropdown && filteredFoods.length > 0 && (
-                                <div
-                                    ref={dropdownRef}
-                                    className="absolute z-10 mt-1 w-full bg-blue-950 border border-blue-800/50 rounded-xl shadow-lg max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-800/50"
-                                >
-                                    {filteredFoods.map(food => (
-                                        <div
-                                            key={food.id}
-                                            onClick={() => handleFoodSelect(food)}
-                                            className="px-4 py-2 cursor-pointer hover:bg-blue-900/50 transition-colors text-blue-100"
-                                        >
-                                            <div className="font-medium">{food.name}</div>
-                                            <div className="text-xs text-blue-300">
-                                                {food.caloriesPerUnit} cal, {food.proteinPerUnit}g protein
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {showDropdown && searchQuery && filteredFoods.length === 0 && (
-                                <div className="absolute z-10 mt-1 w-full bg-blue-950 border border-blue-800/50 rounded-xl shadow-lg p-4 text-center">
-                                    <p className="text-blue-300">No foods found</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-blue-200">Quantity</label>
-                            <input
-                                type="number"
-                                value={quantity}
-                                onChange={(e) => setQuantity(e.target.value)}
-                                min="0"
-                                step="0.1"
-                                className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                                placeholder="Enter quantity"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-blue-200">Date</label>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => handleDateChange(e.target.value)}
-                                max={maxDate}
-                                className="w-full bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-blue-200">Date</label>
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => handleDateChange(e.target.value)}
+                            max={maxDate}
+                            className="w-full md:w-auto bg-blue-900/20 border border-blue-800/30 rounded-xl px-4 py-2.5 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
                     </div>
                     <div className="text-xs text-blue-300">
-                        You can add food consumption for any past day or today
+                        Use the day plan to check off planned foods. Log anything else here.
                     </div>
                     <button
                         type="submit"
