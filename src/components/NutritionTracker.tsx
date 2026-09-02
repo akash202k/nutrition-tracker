@@ -198,7 +198,7 @@ const NutritionTracker: React.FC<Props> = ({
                         <span>{dailyStats.consumedCalories.toFixed(1)} consumed</span>
                     </div>
                     <p className="text-xs text-blue-400 mt-2">
-                        Planned {dailyStats.plannedCalories.toFixed(1)} cal
+                        Goal {dailyStats.calorieGoal.toFixed(1)} cal
                     </p>
                 </div>
 
@@ -223,7 +223,7 @@ const NutritionTracker: React.FC<Props> = ({
                         <span>{dailyStats.consumedProtein.toFixed(1)}g consumed</span>
                     </div>
                     <p className="text-xs text-emerald-400/80 mt-2">
-                        Planned {dailyStats.plannedProtein.toFixed(1)}g
+                        Goal {dailyStats.proteinGoal.toFixed(1)}g
                     </p>
                 </div>
             </div>
